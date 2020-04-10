@@ -308,8 +308,8 @@ func (i *IBazel) iteration(command string, commandToRun runnableCommand, targets
 	case QUERY:
 		// Query for which files to watch.
 		log.Logf("Querying for files to watch...")
-		i.watchFiles(fmt.Sprintf(buildQuery, joinedTargets), i.buildFileWatcher)
-		i.watchFiles(fmt.Sprintf(sourceQuery, joinedTargets), i.sourceFileWatcher)
+		i.watchFiles(fmt.Sprintf(buildQuery, joinedTargets), i.buildFileWatcher, false)
+		i.watchFiles(fmt.Sprintf(sourceQuery, joinedTargets), i.sourceFileWatcher, true)
 		i.state = RUN
 	case DEBOUNCE_RUN:
 		select {
@@ -450,7 +450,7 @@ func (i *IBazel) getInfo() (*map[string]string, error) {
 	return &res, nil
 }
 
-func (i *IBazel) queryForSourceFiles(query string) ([]string, error) {
+func (i *IBazel) queryForSourceFiles(query string, cquery bool) ([]string, error) {
 	b := i.newBazel()
 
 	localRepositories, err := i.realLocalRepositoryPaths()
@@ -459,7 +459,13 @@ func (i *IBazel) queryForSourceFiles(query string) ([]string, error) {
 		return nil, err
 	}
 
-	res, err := b.Query(i.queryArgs(query)...)
+	var res *blaze_query.QueryResult
+	if (cquery) {
+		res, err = b.Cquery(i.queryArgs(query)...)
+	} else {
+		res, err = b.Query(i.queryArgs(query)...)
+
+	}
 	if err != nil {
 		log.Errorf("Bazel query failed: %v", err)
 		return nil, err
@@ -500,8 +506,8 @@ func (i *IBazel) queryForSourceFiles(query string) ([]string, error) {
 	return toWatch, nil
 }
 
-func (i *IBazel) watchFiles(query string, watcher common.Watcher) {
-	toWatch, err := i.queryForSourceFiles(query)
+func (i *IBazel) watchFiles(query string, watcher common.Watcher, cquery bool) {
+	toWatch, err := i.queryForSourceFiles(query, cquery)
 	if err != nil {
 		// If the query fails, just keep watching the same files as before
 		return

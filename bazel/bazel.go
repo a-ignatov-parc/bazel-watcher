@@ -135,6 +135,7 @@ type Bazel interface {
 	Info() (map[string]string, error)
 	Query(args ...string) (*blaze_query.QueryResult, error)
 	CQuery(args ...string) (*analysis.CqueryResult, error)
+	Cquery(args ...string) (*blaze_query.QueryResult, error)
 	Build(args ...string) (*bytes.Buffer, error)
 	Test(args ...string) (*bytes.Buffer, error)
 	Run(args ...string) (*exec.Cmd, *bytes.Buffer, error)
@@ -284,12 +285,46 @@ func (b *bazel) processInfo(info string) (map[string]string, error) {
 //
 //   res, err := b.Query('somepath(//path/to/package:target, //dependency)')
 func (b *bazel) Query(args ...string) (*blaze_query.QueryResult, error) {
-	blazeArgs := append([]string(nil), "--output=proto", "--order_output=no", "--color=no")
+	cquery := false
+	for _, item := range args {
+		if strings.Contains(item, "buildfiles") {
+			cquery = false
+		}
+	}
+	blazeArgs := append([]string(nil), "--output=proto", "--color=no")
+	if cquery {
+		blazeArgs = append(blazeArgs, "--noproto:include_configurations")
+	} else {
+		blazeArgs = append(blazeArgs,"-k", "--order_output=no")
+	}
 	blazeArgs = append(blazeArgs, args...)
 
 	b.WriteToStderr(true)
 	b.WriteToStdout(false)
-	stdoutBuffer, _ := b.newCommand("query", blazeArgs...)
+	var command string
+	if cquery {
+		command = "cquery"
+	} else {
+		command = "query"
+	}
+	stdoutBuffer, _ := b.newCommand(command, blazeArgs...)
+
+	err := b.cmd.Run()
+
+	if cquery && err != nil {
+		return nil, err
+	}
+	return b.processQuery(stdoutBuffer.Bytes())
+}
+
+func (b *bazel) Cquery(args ...string) (*blaze_query.QueryResult, error) {
+	blazeArgs := append([]string(nil), "--output=proto", "--color=no")
+	blazeArgs = append(blazeArgs, "--noproto:include_configurations")
+	blazeArgs = append(blazeArgs, args...)
+
+	b.WriteToStderr(true)
+	b.WriteToStdout(false)
+	stdoutBuffer, _ := b.newCommand("cquery", blazeArgs...)
 
 	err := b.cmd.Run()
 

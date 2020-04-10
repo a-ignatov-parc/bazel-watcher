@@ -29,6 +29,34 @@ go_binary(
     },
 )
 
+go_binary(
+    name = "darwin/ibazel",
+    embed = [":go_default_library"],
+    goos = "darwin",
+    importpath = "github.com/bazelbuild/bazel-watcher/ibazel",
+    # Since we don't have any cgo dependencies, force build to be pure
+    # golang. This will make multi-os compatibility *MUCH* easier.
+    pure = "on",
+    visibility = ["//visibility:public"],
+    x_defs = {
+        "main.Version": "{STABLE_GIT_VERSION}",
+    },
+)
+
+go_binary(
+    name = "linux/ibazel",
+    embed = [":go_default_library"],
+    goos = "linux",
+    importpath = "github.com/bazelbuild/bazel-watcher/ibazel",
+    # Since we don't have any cgo dependencies, force build to be pure
+    # golang. This will make multi-os compatibility *MUCH* easier.
+    pure = "on",
+    visibility = ["//visibility:public"],
+    x_defs = {
+        "main.Version": "{STABLE_GIT_VERSION}",
+    },
+)
+
 go_library(
     name = "go_default_library",
     srcs = [
