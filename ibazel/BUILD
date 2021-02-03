@@ -36,7 +36,7 @@ go_binary(
     importpath = "github.com/bazelbuild/bazel-watcher/ibazel",
     # Since we don't have any cgo dependencies, force build to be pure
     # golang. This will make multi-os compatibility *MUCH* easier.
-    pure = "on",
+    pure = "off",
     visibility = ["//visibility:public"],
     x_defs = {
         "main.Version": "{STABLE_GIT_VERSION}",
@@ -82,6 +82,7 @@ go_library(
         "//ibazel/profiler:go_default_library",
         "//ibazel/workspace:go_default_library",
         "//third_party/bazel/master/src/main/protobuf/blaze_query:go_default_library",
+        "//third_party/bazel/master/src/main/protobuf/analysis:go_default_library",
     ],
 )
 

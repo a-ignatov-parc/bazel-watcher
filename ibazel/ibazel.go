@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"github.com/bazelbuild/bazel-watcher/third_party/bazel/master/src/main/protobuf/analysis"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -459,16 +460,30 @@ func (i *IBazel) queryForSourceFiles(query string, cquery bool) ([]string, error
 		return nil, err
 	}
 
-	var res *blaze_query.QueryResult
-	if (cquery) {
-		res, err = b.Cquery(i.queryArgs(query)...)
-	} else {
-		res, err = b.Query(i.queryArgs(query)...)
+	var targets []*blaze_query.Target
 
-	}
-	if err != nil {
-		log.Errorf("Bazel query failed: %v", err)
-		return nil, err
+	if (cquery) {
+		var res *analysis.CqueryResult
+		res, err = b.CQuery(i.queryArgs(query)...)
+
+		if err != nil {
+			log.Errorf("Bazel cquery failed: %v", err)
+			return nil, err
+		}
+
+		for _, ctarget := range res.Results {
+			targets = append(targets, ctarget.Target)
+		}
+	} else {
+		var res *blaze_query.QueryResult
+		res, err = b.Query(i.queryArgs(query, "--keep_going")...)
+
+		if err != nil {
+			log.Errorf("Bazel query failed: %v", err)
+			return nil, err
+		}
+
+		targets = res.Target
 	}
 
 	workspacePath, err := i.workspaceFinder.FindWorkspace()
@@ -478,7 +493,7 @@ func (i *IBazel) queryForSourceFiles(query string, cquery bool) ([]string, error
 	}
 
 	toWatch := make([]string, 0, 10000)
-	for _, target := range res.Target {
+	for _, target := range targets {
 		switch *target.Type {
 		case blaze_query.Target_SOURCE_FILE:
 			label := *target.SourceFile.Name
